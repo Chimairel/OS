@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -23,4 +27,59 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.retro-button {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid black;
+  background-color: #e0e0e0; /* Light gray for buttons */
+  color: black;
+  font-weight: bold;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+  box-shadow: 2px 2px 0px 0px black; /* 3D effect */
+}
+
+.retro-button:hover {
+  background-color: #d0d0d0;
+  box-shadow: 1px 1px 0px 0px black; /* Pressed effect */
+  transform: translate(1px, 1px);
+}
+
+.retro-button:active {
+  background-color: #c0c0c0;
+  box-shadow: 0px 0px 0px 0px black;
+  transform: translate(2px, 2px);
+}
+
+.retro-link-button {
+  /* ... all the link styles ... */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Adjusted to space out the content/arrow */
+  padding: 0.75rem 1.5rem;
+  border: 2px solid black;
+  background-color: white;
+  color: black;
+  font-weight: bold;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+  box-shadow: 2px 2px 0px 0px black;
+}
+
+.retro-link-button:hover {
+  background-color: #f0f0f0;
+  box-shadow: 1px 1px 0px 0px black;
+  transform: translate(1px, 1px);
+}
+
+.retro-link-button:active {
+  background-color: #e0e0e0;
+  box-shadow: 0px 0px 0px 0px black;
+  transform: translate(2px, 2px);
 }
