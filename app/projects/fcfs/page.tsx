@@ -29,151 +29,61 @@ interface ProcessResult extends Omit<Process, "arrival" | "burst"> {
   remaining?: number;
 }
 
-// --- SJF Non-Preemptive (NP) Logic ---
-function sjfNonPreemptive(
-  processes: { pid: string; arrival: number; burst: number }[]
-) {
-  const n = processes.length;
-  const procs = processes.map((p) => ({ ...p }));
+// --- FCFS Logic ---
+function fcfs(processes: { pid: string; arrival: number; burst: number }[]) {
+  const procs = processes
+    .map((p) => ({ ...p }))
+    .sort((a, b) => a.arrival - b.arrival || a.pid.localeCompare(b.pid));
+
   const done: ProcessResult[] = [];
-
   let time = 0;
-  let completed = 0;
-
-  while (completed < n) {
-    // 1. Find all available processes (arrived and not completed)
-    const available = procs.filter((p) => p.arrival <= time && p.burst >= 0);
-
-    if (available.length === 0) {
-      // If no processes are available, check if any are unarrived
-      const unarrived = procs
-        .filter((p) => p.burst > 0 && p.arrival > time)
-        .sort((a, b) => a.arrival - b.arrival);
-      if (unarrived.length > 0) {
-        // Move time forward to the next arrival time (IDLE time)
-        time = unarrived[0].arrival;
-      } else {
-        // No more processes left, exit
-        break;
-      }
-      continue;
-    }
-
-    // 2. Sort by Shortest Burst Time (SBT), then by Arrival Time (tie-breaker)
-    available.sort((a, b) => a.burst - b.burst || a.arrival - b.arrival);
-    const current = available[0];
-
-    // 3. Execute the process
-    const startTime = Math.max(time, current.arrival);
-    time = startTime + current.burst;
-
-    // 4. Record results
-    done.push({
-      ...current,
-      completion: time,
-      turnaround: time - current.arrival,
-      waiting: time - current.arrival - current.burst,
-    });
-
-    // Mark as completed by setting burst to -1
-    const procIndex = procs.findIndex(
-      (p) =>
-        p.pid === current.pid &&
-        p.arrival === current.arrival &&
-        p.burst === current.burst
-    );
-    if (procIndex !== -1) {
-      procs[procIndex].burst = -1;
-    }
-
-    completed++;
-  }
-
-  // Generate Timeline (Gantt Chart)
   const timeline: (string | "IDLE")[] = [];
-  let currentTime = 0;
-  done.forEach((p) => {
-    const start = p.completion - p.burst;
-    if (start > currentTime) {
-      // Add IDLE time
-      for (let i = 0; i < start - currentTime; i++) {
+
+  for (const current of procs) {
+    let startTime = time;
+
+    // 1. Check for IDLE time
+    if (current.arrival > time) {
+      const idleDuration = current.arrival - time;
+      for (let i = 0; i < idleDuration; i++) {
         timeline.push("IDLE");
       }
-    }
-    // Add execution time
-    for (let i = 0; i < p.burst; i++) {
-      timeline.push(p.pid);
-    }
-    currentTime = p.completion;
-  });
-
-  return { timeline, results: done };
-}
-
-// --- SJF Preemptive (Shortest Remaining Time First or SRTF) Logic ---
-function sjfPreemptive(
-  processes: { pid: string; arrival: number; burst: number }[]
-) {
-  const proc: ProcessResult[] = processes.map((p) => ({
-    ...p,
-    remaining: p.burst,
-    completion: 0,
-    waiting: 0,
-    turnaround: 0,
-  }));
-
-  let time = 0;
-  let completed = 0;
-  const n = proc.length;
-  const timeline: (string | "IDLE")[] = [];
-
-  while (completed < n) {
-    let idx = -1;
-    let min = Infinity;
-
-    // 1. Find the process with the shortest remaining time that has arrived
-    for (let i = 0; i < n; i++) {
-      if (
-        proc[i].arrival <= time &&
-        proc[i].remaining! > 0 &&
-        proc[i].remaining! < min
-      ) {
-        min = proc[i].remaining!;
-        idx = i;
-      }
+      startTime = current.arrival;
     }
 
-    if (idx === -1) {
-      // If no process is available, CPU is IDLE
-      timeline.push("IDLE");
-      time++;
-      continue;
+    // 2. Process Execution
+    const completionTime = startTime + current.burst;
+    for (let i = 0; i < current.burst; i++) {
+      timeline.push(current.pid);
     }
 
-    // 2. Execute the selected process for 1 unit of time
-    proc[idx].remaining!--;
-    timeline.push(proc[idx].pid);
-    time++;
+    // 3. Update time and record results
+    time = completionTime;
 
-    // 3. Check if the process completed
-    if (proc[idx].remaining === 0) {
-      completed++;
-      proc[idx].completion = time;
-      proc[idx].turnaround = time - proc[idx].arrival;
-      proc[idx].waiting = proc[idx].turnaround - proc[idx].burst;
-    }
+    done.push({
+      ...current,
+      completion: completionTime,
+      turnaround: completionTime - current.arrival,
+      waiting: completionTime - current.arrival - current.burst,
+    });
   }
 
-  return { timeline, results: proc };
-}
-
-export default function SJFSimulator() {
-  const [mode, setMode] = useState<"preemptive" | "nonPreemptive">(
-    "preemptive"
+  // Compress the timeline: remove consecutive duplicates
+  const compressedTimeline = timeline.reduce(
+    (acc: (string | "IDLE")[], current) => {
+      if (acc.length === 0 || acc[acc.length - 1] !== current) {
+        acc.push(current);
+      }
+      return acc;
+    },
+    []
   );
 
-  const [processes, setProcesses] = useState<Process[]>(getInitialProcesses());
+  return { timeline: compressedTimeline, results: done };
+}
 
+export default function FCFSSimulator() {
+  const [processes, setProcesses] = useState<Process[]>(getInitialProcesses());
   const [results, setResults] = useState<ProcessResult[] | null>(null);
   const [timeline, setTimeline] = useState<(string | "IDLE")[] | null>(null);
   const [error, setError] = useState("");
@@ -185,6 +95,7 @@ export default function SJFSimulator() {
     if (field === "pid") {
       updated[i].pid = value;
     } else {
+      // Ensure only non-negative integers are entered
       if (!/^\d*$/.test(value)) return;
       updated[i][field] = value === "" ? "" : parseInt(value);
     }
@@ -219,7 +130,6 @@ export default function SJFSimulator() {
     setError("");
   };
 
-  // --- NEW: Handle Enter Key Navigation ---
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
     i: number,
@@ -228,18 +138,13 @@ export default function SJFSimulator() {
     if (e.key === "Enter") {
       e.preventDefault();
 
-      // Calculate the PID index of the next row. Since PIDs start at P1 and i is 0-indexed,
-      // the next PID is P(i+2).
       const nextPidIndex = i + 2;
       const nextId = `${field}-P${nextPidIndex}`;
-
       const nextElement = document.getElementById(nextId);
 
       if (nextElement) {
-        // Focus the next input field in the same column
         nextElement.focus();
       } else if (i === processes.length - 1) {
-        // If it's the last row, focus the "Add Process" button
         document.getElementById("add-process-button")?.focus();
       }
     }
@@ -295,14 +200,7 @@ export default function SJFSimulator() {
       return setError("Please define at least one process.");
     }
 
-    validProcesses.sort((a, b) => a.arrival - b.arrival);
-
-    let out;
-    if (mode === "nonPreemptive") {
-      out = sjfNonPreemptive(validProcesses);
-    } else {
-      out = sjfPreemptive(validProcesses);
-    }
+    const out = fcfs(validProcesses);
 
     setResults(out.results.sort((a, b) => a.pid.localeCompare(b.pid)));
     setTimeline(out.timeline);
@@ -320,56 +218,60 @@ export default function SJFSimulator() {
     <main className="min-h-screen bg-gray-100 font-mono text-gray-900 border-4 border-black p-4 md:p-8">
       <div className="flex items-center border-b-2 border-black pb-3 mb-6">
         <span className="w-4 h-4 bg-black rounded-full mr-2"></span>
-        <h1 className="text-3xl font-extrabold">SJF Scheduling Simulator</h1>
+        <h1 className="text-3xl font-extrabold text-center md:text-left">
+          FCFS Scheduling Simulator
+        </h1>
       </div>
 
-      <section className="mb-8 p-4 border-2 border-black bg-white shadow-md">
+      <section className="mb-8 p-4 border-2 border-black bg-white shadow-md rounded-lg">
         <h2 className="text-xl font-bold mb-4">Input Parameters</h2>
 
-        <div className="flex items-center space-x-4 mb-4 pb-4 border-b border-gray-300">
-          <label className="font-semibold">SJF Type:</label>
-          <select
-            value={mode}
-            onChange={(e) =>
-              setMode(e.target.value as "preemptive" | "nonPreemptive")
-            }
-            className="p-2 border-2 border-black bg-gray-50 font-mono focus:outline-none"
-          >
-            <option value="preemptive">Preemptive (SRTF)</option>
-            <option value="nonPreemptive">Non-Preemptive</option>
-          </select>
+        <div className="mb-4 pb-4 border-b border-gray-300">
+          <p className="text-sm font-semibold text-gray-700">
+            Algorithm: First Come, First Served (FCFS)
+          </p>
           <p className="text-xs text-gray-600">
-            Max Time Unit: {MAX_TIME_UNIT}
+            Max Time Unit: {MAX_TIME_UNIT}. FCFS is inherently non-preemptive.
           </p>
         </div>
 
         {error && (
-          <div className="border-2 border-red-600 bg-red-100 p-2 mb-4">
+          <div className="border-2 border-red-600 bg-red-100 p-2 mb-4 rounded">
             <p className="text-red-600 font-bold">🚨 {error}</p>
           </div>
         )}
 
+        {/* Process Input Table */}
         <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse border-2 border-black">
+          <table className="min-w-full border-collapse border-2 border-black rounded-md">
             <thead>
               <tr className="bg-gray-200 border-b-2 border-black">
-                <th className="p-3 border border-black">P</th>
-                <th className="p-3 border border-black">Arrival Time (ms)</th>
-                <th className="p-3 border border-black">Burst Time (ms)</th>
-                <th className="p-3 border border-black">Action</th>
+                <th className="p-3 border border-black w-[25%] min-w-[70px]">
+                  P
+                </th>
+                <th className="p-3 border border-black w-[25%]">
+                  Arrival Time (ms)
+                </th>
+                <th className="p-3 border border-black w-[25%]">
+                  Burst Time (ms)
+                </th>
+                <th className="p-3 border border-black w-[25%]">Action</th>
               </tr>
             </thead>
+
             <tbody>
               {processes.map((p, i) => (
                 <tr key={i} className="bg-white hover:bg-gray-50">
-                  <td className="p-2 border border-black text-center">
+                  <td className="p-2 border border-black text-center min-w-[70px]">
                     <input
                       value={p.pid}
                       readOnly
-                      className="w-full text-center border-2 border-gray-400 p-1 font-mono focus:border-black bg-gray-100 cursor-not-allowed"
+                      className="w-full text-center border-2 border-gray-400 p-1 font-mono 
+                                 focus:border-black bg-gray-100 cursor-not-allowed rounded-md"
                       placeholder={`P${i + 1}`}
                     />
                   </td>
+
                   <td className="p-2 border border-black text-center">
                     <input
                       type="text"
@@ -379,11 +281,12 @@ export default function SJFSimulator() {
                         updateField(i, "arrival", e.target.value)
                       }
                       onKeyDown={(e) => handleKeyDown(e, i, "arrival")}
-                      className="w-full text-center border-2 border-gray-400 p-1 font-mono focus:border-black"
+                      className="w-full text-center border-2 border-gray-400 p-1 font-mono focus:border-black rounded-md"
                       placeholder="e.g., 0"
                       maxLength={MAX_TIME_UNIT.toString().length}
                     />
                   </td>
+
                   <td className="p-2 border border-black text-center">
                     <input
                       type="text"
@@ -391,15 +294,16 @@ export default function SJFSimulator() {
                       value={p.burst}
                       onChange={(e) => updateField(i, "burst", e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, i, "burst")}
-                      className="w-full text-center border-2 border-gray-400 p-1 font-mono focus:border-black"
+                      className="w-full text-center border-2 border-gray-400 p-1 font-mono focus:border-black rounded-md"
                       placeholder="e.g., 5"
                       maxLength={MAX_TIME_UNIT.toString().length}
                     />
                   </td>
+
                   <td className="p-2 border border-black text-center">
                     <button
                       onClick={() => removeProcess(i)}
-                      className="retro-button bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3"
+                      className="retro-button bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded-md shadow-md"
                     >
                       Remove X
                     </button>
@@ -410,25 +314,26 @@ export default function SJFSimulator() {
           </table>
         </div>
 
-        <div className="mt-4 flex justify-between">
+        {/* Action Buttons */}
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
           <button
             onClick={simulate}
-            className="retro-button bg-green-600 hover:bg-green-700 text-white"
+            className="retro-button bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto py-2 px-6 rounded-md shadow-lg transition duration-150"
           >
-            SIMULATE
+            SIMULATE FCFS
           </button>
 
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 w-full sm:w-auto justify-end">
             <button
               id="add-process-button"
               onClick={addProcess}
-              className="retro-button bg-blue-600 hover:bg-blue-700 text-white"
+              className="retro-button bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md shadow-md transition duration-150"
             >
               + Add Process
             </button>
             <button
               onClick={resetProcesses}
-              className="retro-button bg-gray-500 hover:bg-gray-600 text-white"
+              className="retro-button bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md shadow-md transition duration-150"
             >
               Reset
             </button>
@@ -437,12 +342,10 @@ export default function SJFSimulator() {
       </section>
 
       {results && (
-        <section className="mt-8 p-4 border-2 border-black bg-white shadow-md">
+        <section className="mt-8 p-4 border-2 border-black bg-white shadow-md rounded-lg">
           <div className="flex items-center border-b-2 border-black pb-3 mb-4">
             <span className="w-3 h-3 bg-black rounded-full mr-2"></span>
-            <h2 className="text-xl font-bold">
-              Simulation Output ({mode === "preemptive" ? "SRTF" : "SJF-NP"})
-            </h2>
+            <h2 className="text-xl font-bold">Simulation Output (FCFS)</h2>
           </div>
 
           {timeline && (
@@ -450,15 +353,16 @@ export default function SJFSimulator() {
               <h3 className="text-lg font-semibold mb-2">
                 Gantt Chart (Timeline)
               </h3>
-              <div className="p-3 mb-6 bg-gray-900 text-green-400 rounded font-mono overflow-x-auto text-sm whitespace-nowrap border-2 border-black">
+              <div className="p-3 mb-6 bg-gray-900 text-green-400 rounded-lg font-mono overflow-x-auto text-sm whitespace-nowrap border-2 border-black">
                 {timeline.join(" → ")}
               </div>
             </>
           )}
 
           <h3 className="text-lg font-semibold mb-2">Process Metrics</h3>
+
           <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse border-2 border-black">
+            <table className="min-w-full border-collapse border-2 border-black rounded-md">
               <thead>
                 <tr className="bg-gray-200 border-b-2 border-black">
                   <th className="p-2 border border-black">P</th>
@@ -473,6 +377,7 @@ export default function SJFSimulator() {
                   </th>
                 </tr>
               </thead>
+
               <tbody>
                 {results.map((p) => (
                   <tr key={p.pid} className="bg-white hover:bg-gray-50">
@@ -489,10 +394,10 @@ export default function SJFSimulator() {
                       {p.completion}
                     </td>
                     <td className="p-2 border border-black text-center bg-green-50">
-                      {p.turnaround.toFixed(0)}
+                      {Math.round(p.turnaround)}
                     </td>
                     <td className="p-2 border border-black text-center bg-yellow-50">
-                      {p.waiting.toFixed(0)}
+                      {Math.round(p.waiting)}
                     </td>
                   </tr>
                 ))}
@@ -500,7 +405,7 @@ export default function SJFSimulator() {
             </table>
           </div>
 
-          <div className="mt-6 p-4 border-2 border-black bg-gray-200 flex justify-around text-lg font-bold">
+          <div className="mt-6 p-4 border-2 border-black bg-gray-200 rounded-md flex flex-col sm:flex-row justify-around text-lg font-bold space-y-2 sm:space-y-0">
             <p>
               Avg Waiting Time:{" "}
               <span className="text-red-600">{avgW.toFixed(2)}</span>
@@ -512,6 +417,14 @@ export default function SJFSimulator() {
           </div>
         </section>
       )}
+      {/* Footer */}
+      <footer className="border-t-2 border-black pt-4 mt-8 text-center text-sm text-gray-700">
+        <p>
+          &copy; {new Date().getFullYear()} Chimairel Pacaldo. All rights
+          reserved.
+        </p>
+        <p>Inspired by classic Mac OS aesthetics.</p>
+      </footer>
     </main>
   );
 }

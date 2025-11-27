@@ -1,24 +1,23 @@
 "use client";
 import Link from "next/link";
-
 import Image from "next/image";
 
 export default function Home() {
   const portfolioItems = [
     {
       id: 1,
-      title: "SJF Scheduling",
+      title: "FCFS Scheduler Simulator",
       description:
-        "A simulator for the Shortest Job First (SJF) Preemptive/Non-Preemptive CPU scheduling algorithm, visualizing process execution, context switching, and wait times.",
-      link: "/projects/sjf-scheduler",
-      image: "/SJF.png",
+        "A simulator for the First-Come, First-Served (FCFS) CPU scheduling algorithm, visualizing process execution, context switching, and wait times.",
+      link: "/projects/fcfs",
+      image: "/FCFS.png",
       openInNewTab: true,
     },
     {
       id: 2,
-      title: "7-EVELYN",
+      title: "7 EVELYN",
       description:
-        "An E-commerce Shop using React. This application features product browsing, product details, search and filter and a shopping cart with a simple checkout process.",
+        "A simple e-commerce site mock-up focused on a modern shopping experience. This application features product browsing, search, filtering, a shopping cart, and a secure checkout process.",
       link: "https://7-evelyn-gilt.vercel.app/",
       image: "/7-evelyn.png",
       openInNewTab: true,
@@ -27,6 +26,15 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-100 font-mono text-gray-900 border-4 border-black p-4 md:p-8">
+      <style jsx global>{`
+        .retro-button {
+          @apply px-4 py-2 font-bold text-center border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] transition duration-150 hover:bg-gray-200 active:shadow-none active:translate-x-1 active:translate-y-1;
+        }
+        .retro-link-button {
+          @apply retro-button block text-lg;
+        }
+      `}</style>
+
       {/* Top Bar / Navigation */}
       <nav className="flex items-center justify-between border-b-2 border-black pb-4 mb-8">
         <div className="flex items-center space-x-2">
@@ -71,9 +79,9 @@ export default function Home() {
             <Image
               src="/pixelart.png"
               alt="Pixel art laptop"
-              width={200}
-              height={200}
-              className="w-full h-auto max-w-m"
+              width={300}
+              height={300}
+              className="w-full h-auto max-w-sm"
               priority
             />
           </div>
@@ -85,13 +93,13 @@ export default function Home() {
         <h2 className="text-2xl font-bold mb-4">Quick links</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Link href="#about" className="retro-link-button">
-            About <span className="ml-2"></span>
+            About
           </Link>
           <Link href="#portfolio" className="retro-link-button">
-            Portfolio <span className="ml-2"></span>
+            Portfolio
           </Link>
           <Link href="#contact" className="retro-link-button">
-            Contact <span className="ml-2"></span>
+            Contact
           </Link>
         </div>
       </section>
@@ -124,6 +132,7 @@ export default function Home() {
           <span className="w-3 h-3 bg-black rounded-full mr-2"></span>
           <h2 className="text-2xl font-bold">Portfolio</h2>
         </div>
+
         <div className="grid md:grid-cols-2 gap-8">
           {portfolioItems.map((project) => (
             <div
@@ -137,11 +146,15 @@ export default function Home() {
                   {project.title.replace(/\s/g, "-")}.exe
                 </span>
               </div>
-              <img
+
+              <Image
                 src={project.image}
                 alt={project.title}
+                width={800}
+                height={600}
                 className="w-full h-48 object-cover border-b-2 border-black"
               />
+
               <div className="p-4">
                 <h3 className="text-xl font-bold mb-2">{project.title}</h3>
                 <p className="text-sm text-gray-700 mb-4">
@@ -174,18 +187,20 @@ export default function Home() {
         <p className="text-lg text-gray-700 mb-6">
           Feel free to reach out for collaborations or just to say hello!
         </p>
+
         <ol>
           <li>Email: chimairelp@gmail.com</li>
           <li>Phone: 0912-345-6789</li>
-          <br />
         </ol>
+
         <a
           href="https://gmail.com"
-          className="retro-button text-lg"
+          className="retro-button text-lg mt-4 inline-block"
           target="_blank"
         >
           Send Email
         </a>
+
         <div className="mt-6 flex space-x-6 text-xl justify-center">
           <a
             href="https://github.com/chimairel"
