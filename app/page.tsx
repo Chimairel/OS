@@ -69,7 +69,7 @@ export default function Home() {
               <Link href="#portfolio" className="retro-button">
                 View My Work
               </Link>
-              <a href="/resume.pdf" download className="retro-button">
+              <a href="/chimairel-resume.pdf" download className="retro-button">
                 Download Resume
               </a>
             </div>
